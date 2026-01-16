@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Koox Admin | Centro de Comando</title>
+    
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="login-screen" class="login-container">
+        <div class="login-card">
+            <h1 style="color:#0056b3;">Rutas Koox <span style="font-weight:300;">Admin</span></h1>
+            <p>Acceso al Centro de Comando Unificado</p>
+            
+            <form id="login-form">
+                <input type="email" id="email" placeholder="admin@rutaskoox.com" required>
+                <input type="password" id="password" placeholder="Contraseña Maestra" required>
+                <button type="submit">Entrar al Sistema</button>
+            </form>
+            <p id="login-error" style="color:red; display:none; margin-top:10px; font-size:0.9rem;">Error de credenciales</p>
+        </div>
+    </div>
+
+    <div id="dashboard-screen" class="dashboard-layout oculto">
+        
+        <aside class="sidebar">
+            <div class="brand">
+                <i class="ri-shield-star-line"></i> Koox Admin
+            </div>
+            <nav>
+                <button class="nav-btn active" onclick="cambiarVista('vista-resumen')">
+                    <i class="ri-dashboard-line"></i> Resumen
+                </button>
+                <button class="nav-btn" onclick="cambiarVista('vista-flota')">
+                    <i class="ri-map-2-line"></i> Flota en Vivo
+                </button>
+                <button class="nav-btn" onclick="cambiarVista('vista-analitica')">
+                    <i class="ri-bar-chart-grouped-line"></i> Analítica
+                </button>
+            </nav>
+            <div class="logout-area">
+                <button class="logout-btn" id="btn-logout"><i class="ri-logout-box-line"></i> Cerrar Sesión</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            
+            <header>
+                <h2 id="page-title">Panel de Control</h2>
+                <div class="status-indicator">
+                    Estado: <span id="system-status-badge" class="badge-success">Conectando...</span>
+                </div>
+            </header>
+
+            <div id="vista-resumen" class="view-section">
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="icon-box blue"><i class="ri-bus-wifi-line"></i></div>
+                        <div>
+                            <h3>Unidades Activas</h3>
+                            <span class="stat-number" id="count-buses">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon-box orange"><i class="ri-alarm-warning-line"></i></div>
+                        <div>
+                            <h3>Reportes Hoy</h3>
+                            <span class="stat-number" id="count-reports">--</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon-box purple"><i class="ri-group-line"></i></div>
+                        <div>
+                            <h3>Usuarios Online</h3>
+                            <span class="stat-number" id="count-users">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-panel">
+                    <h3>🚨 Control de Emergencia (App Usuarios)</h3>
+                    <p>Usa este interruptor para bloquear el acceso a la App Pública en caso de fallas graves.</p>
+                    
+                    <div class="switch-container">
+                        <label class="switch">
+                            <input type="checkbox" id="mantenimiento-toggle">
+                            <span class="slider round"></span>
+                        </label>
+                        <span id="mantenimiento-label" style="font-weight:bold; margin-left:10px;">Cargando estado...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="vista-flota" class="view-section oculto" style="height: calc(100vh - 150px); position: relative;">
+                
+                <div style="position: absolute; top: 10px; right: 10px; z-index: 1000; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+                    <h4 style="margin:0 0 10px 0; font-size:0.9rem;">Capas del Mapa</h4>
+                    <label style="display:block; margin-bottom:5px; font-size:0.85rem; cursor:pointer;">
+                        <input type="checkbox" checked disabled> 🚍 Flota (GPS Real)
+                    </label>
+                    <label style="display:block; font-size:0.85rem; cursor:pointer;">
+                        <input type="checkbox" id="toggle-reportes" onchange="toggleCapaReportes(this.checked)"> 📢 Reportes Ciudadanos
+                    </label>
+                </div>
+       
+                    <div id="panel-alertas-criticas" style="position: absolute; top: 10px; left: 60px; z-index: 1000; width: 300px; display: none;">
+                        </div>
+
+                <div id="map-admin" style="width: 100%; height: 100%; border-radius: 15px;"></div>
+            </div>
+
+            <div id="vista-analitica" class="view-section oculto">
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <h3>📊 Telemetría y Métricas de Flota</h3>
+                    <button onclick="descargarReporteCSV()" style="background:#10b981; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold; display:flex; align-items:center; gap:8px;">
+                        <i class="ri-file-excel-2-line"></i> Descargar Datos (.CSV)
+                    </button>
+                </div>
+
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap:20px; margin-bottom:30px;">
+                    
+                    <div style="background:white; padding:20px; border-radius:15px; box-shadow:0 5px 15px rgba(0,0,0,0.05);">
+                        <h4>🚍 Unidades por Ruta (Oferta)</h4>
+                        <canvas id="chart-flota"></canvas>
+                    </div>
+
+                    <div style="background:white; padding:20px; border-radius:15px; box-shadow:0 5px 15px rgba(0,0,0,0.05);">
+                        <h4>🚀 Velocidad Promedio (Km/h)</h4>
+                        <canvas id="chart-velocidad"></canvas>
+                    </div>
+
+                    <div style="background:white; padding:20px; border-radius:15px; box-shadow:0 5px 15px rgba(0,0,0,0.05); grid-column: 1 / -1;">
+                        <h4>⏱️ Tiempo Promedio de Recorrido (Minutos)</h4>
+                        <p style="font-size:0.8rem; color:#666;">Basado en historial de turnos terminados</p>
+                        <canvas id="chart-tiempos" style="max-height: 250px;"></canvas>
+                    </div>
+                </div>
+
+                <div style="background:white; padding:20px; border-radius:15px; box-shadow:0 5px 15px rgba(0,0,0,0.05);">
+                    <h4>📋 Detalle de Unidades en Tiempo Real</h4>
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%; border-collapse:collapse; margin-top:15px;">
+                            <thead>
+                                <tr style="background:#f8fafc; text-align:left; color:#64748b;">
+                                    <th style="padding:12px;">ID Unidad</th>
+                                    <th style="padding:12px;">Ruta</th>
+                                    <th style="padding:12px;">Velocidad</th>
+                                    <th style="padding:12px;">Estado</th>
+                                    <th style="padding:12px;">Última Act.</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-telemetria-body">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    
+    <script src="js/firebase-config.js"></script> <script src="js/auth.js"></script>            <script src="js/admin-core.js"></script>      <script src="js/map-fleet.js"></script>       <script src="js/analytics.js"></script>      
+    <script>
+        document.addEventListener('contextmenu', event => event.preventDefault()); // Bloquea Clic Derecho
+        
+        document.onkeydown = function(e) {
+            // Bloquea F12, Ctrl+U (Ver fuente), Ctrl+Shift+I (Inspector)
+            if(e.keyCode == 123) { return false; }
+            if(e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) { return false; }
+            if(e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) { return false; }
+            if(e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) { return false; }
+            if(e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) { return false; }
+        }
+    </script>
+</body>
+</html>
